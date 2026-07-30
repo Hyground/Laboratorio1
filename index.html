@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineStream - Catálogo de Películas</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+
+<body>
+
+    <!-- Encabezado y Navegación Principal -->
+    <header>
+        <nav class="navbar">
+            <a href="#" class="logo">Cine<span>Stream</span></a>
+
+            <div class="search-bar">
+                <input type="text" id="input-busqueda" placeholder="Buscar película..."
+                    data-i18n-placeholder="search_placeholder">
+            </div>
+
+            <!-- Selector desplegable de idioma -->
+            <div class="lang-selector">
+                <select id="select-lang" aria-label="Seleccionar idioma">
+                    <option value="es" selected>🇪🇸 Español</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="pt">🇵🇹 Português</option>
+                </select>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Barra Superior de Filtros Rápidos -->
+    <section class="filters-bar">
+        <div class="filters-container">
+            <span class="filters-label" data-i18n="categories">Categorías:</span>
+            <div class="filter-pills" id="filtro-generos">
+                <button class="pill-btn active" data-genre="todos" data-i18n="all">Todos</button>
+                <button class="pill-btn" data-genre="28" data-i18n="action">Acción</button>
+                <button class="pill-btn" data-genre="12" data-i18n="adventure">Aventura</button>
+                <button class="pill-btn" data-genre="35" data-i18n="comedy">Comedia</button>
+                <button class="pill-btn" data-genre="18" data-i18n="drama">Drama</button>
+                <button class="pill-btn" data-genre="878" data-i18n="scifi">Ciencia Ficción</button>
+                <button class="pill-btn" data-genre="27" data-i18n="horror">Terror</button>
+                <button class="pill-btn" data-genre="favoritos" data-i18n="favorites">❤️ Favoritos</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        <div class="section-header">
+            <h2 id="titulo-seccion" data-i18n="popular">Películas Populares</h2>
+        </div>
+
+        <!-- Contenedor del Catálogo -->
+        <div class="grid-peliculas" id="contenedor-peliculas">
+            <!-- Las tarjetas de películas se cargarán dinámicamente -->
+        </div>
+    </main>
+
+    <!-- Modal de Detalle de Película -->
+    <div id="modal-pelicula" class="modal-overlay">
+        <div class="modal-content">
+            <button id="btn-cerrar-modal" class="btn-cerrar">&times;</button>
+
+            <div class="modal-body">
+                <div class="modal-poster">
+                    <img id="modal-img" src="" alt="Póster">
+                </div>
+                <div class="modal-info">
+                    <h2 id="modal-titulo">Título</h2>
+
+                    <div class="modal-meta">
+                        <span id="modal-fecha">Año</span>
+                        <span id="modal-rating" class="rating">★ 0.0</span>
+                    </div>
+
+                    <p id="modal-sinopsis">Sinopsis...</p>
+
+                    <div class="modal-actions">
+                        <button class="btn-gold" data-i18n="play">▶ Reproducir</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 CineStream.</p>
+    </footer>
+
+    <script src="logica.js"></script>
+</body>
+
+</html>
