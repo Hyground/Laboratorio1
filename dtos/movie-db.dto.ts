@@ -9,6 +9,9 @@ export interface MovieDbMovieDto {
     year?: number;
 }
 
+/** Contrato admitido después de inspeccionar un payload externo desconocido. */
+export type IncompleteMovieDbDto = Partial<MovieDbMovieDto>;
+
 export interface MovieDbResponseDto {
     results: MovieDbMovieDto[];
 }

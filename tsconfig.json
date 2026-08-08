@@ -6,6 +6,10 @@
     "lib": ["ES2020", "DOM"],
     "strict": true,
     "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "noEmitOnError": true,
     "skipLibCheck": true

@@ -1,4 +1,4 @@
-import type { MovieDbMovieDto } from '../dtos/movie-db.dto.js';
+import type { IncompleteMovieDbDto } from '../dtos/movie-db.dto.js';
 import type { Movie, MovieCatalogResult } from '../entities/movie.entity.js';
 import { mapMovieDtoToEntity } from '../mappers/movie.mapper.js';
 
@@ -22,12 +22,17 @@ async function fetchJson<T>(url: string): Promise<T> {
 /** Conecta tres endpoints reales y los consulta en paralelo. */
 export async function cargarDatosOrquestados(): Promise<MovieCatalogResult> {
     const results = await Promise.allSettled(ENDPOINTS.map(([genre]) => fetchJson<unknown>(`${API_BASE_URL}/${genre}`)));
-    const mappedMovies = results.flatMap((result, index) => result.status === 'fulfilled'
-        ? normalizeMovies(result.value).map((movie) => mapMovieDtoToEntity(movie, ENDPOINTS[index][1]))
-        : []);
+    const mappedMovies = results.flatMap((result, index) => {
+        const endpoint = ENDPOINTS[index];
+        return result.status === 'fulfilled' && endpoint
+            ? normalizeMovies(result.value).map((movie, movieIndex) => mapMovieDtoToEntity(movie, endpoint[1], movieIndex))
+            : [];
+    });
     const failedGenres = results.flatMap((result, index) => {
+        const endpoint = ENDPOINTS[index];
+        if (!endpoint) return [];
         const hasMovies = result.status === 'fulfilled' && normalizeMovies(result.value).length > 0;
-        return hasMovies ? [] : [ENDPOINTS[index][2]];
+        return hasMovies ? [] : [endpoint[2]];
     });
     const movies = deduplicate(mappedMovies);
     await enrichMovies(movies);
@@ -52,6 +57,7 @@ async function enrichMovies(movies: Movie[]): Promise<void> {
     async function worker(): Promise<void> {
         while (nextIndex < pending.length) {
             const movie = pending[nextIndex++];
+            if (!movie) continue;
             try {
                 const payload = await fetchJson<CinemetaResponse>(`${CINEMETA_BASE_URL}/${encodeURIComponent(movie.imdbId!)}.json`);
                 const meta = payload.meta;
@@ -82,20 +88,29 @@ function deduplicate(movies: Movie[]): Movie[] {
 }
 
 /** Algunos endpoints entregan un arreglo y otros lo envuelven en data/results/items. */
-function normalizeMovies(payload: unknown): MovieDbMovieDto[] {
-    if (Array.isArray(payload)) return payload.filter(isMovieDto);
+function normalizeMovies(payload: unknown): IncompleteMovieDbDto[] {
+    if (Array.isArray(payload)) return payload.flatMap(toIncompleteMovieDto);
     if (!isRecord(payload)) return [];
     for (const key of ['results', 'data', 'movies', 'items']) {
         const value = payload[key];
-        if (Array.isArray(value)) return value.filter(isMovieDto);
+        if (Array.isArray(value)) return value.flatMap(toIncompleteMovieDto);
     }
-    return isMovieDto(payload) ? [payload] : [];
+    return toIncompleteMovieDto(payload);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
 
-function isMovieDto(value: unknown): value is MovieDbMovieDto {
-    return isRecord(value) && typeof value.id === 'number' && typeof value.title === 'string';
+function toIncompleteMovieDto(value: unknown): IncompleteMovieDbDto[] {
+    if (!isRecord(value)) return [];
+    const dto: IncompleteMovieDbDto = {};
+    if (typeof value.id === 'number' && Number.isFinite(value.id)) dto.id = value.id;
+    if (typeof value.title === 'string') dto.title = value.title;
+    if (typeof value.posterURL === 'string') dto.posterURL = value.posterURL;
+    if (typeof value.imdbId === 'string') dto.imdbId = value.imdbId;
+    if (typeof value.rating === 'string' || typeof value.rating === 'number') dto.rating = value.rating;
+    if (typeof value.runtime === 'number' && Number.isFinite(value.runtime)) dto.runtime = value.runtime;
+    if (typeof value.year === 'number' && Number.isFinite(value.year)) dto.year = value.year;
+    return Object.keys(dto).length ? [dto] : [];
 }
