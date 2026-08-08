@@ -32,7 +32,7 @@ Archivos clave:
 - `entities/`: contratos polimórficos de contenido.
 - `dtos/` y `mappers/`: aislamiento y saneamiento de red.
 - `tests/data-catalog.manager.type-test.ts`: demostración compilable con tres entidades.
-- `docs/Reporte-Tecnico-Tarea-4.pdf`: reporte formal de entrega.
+- `docs/ReporteTecnico.pdf`: reporte formal de entrega.
 
 Para validar los tipos sin generar JavaScript:
 
