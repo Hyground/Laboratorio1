@@ -1,5 +1,7 @@
+import type { CatalogEntity } from './catalog.entity.js';
+
 /** Entidad interna, ya validada y lista para la interfaz. */
-export interface Movie {
+export interface Movie extends CatalogEntity {
     id: number;
     imdbId?: string;
     title: string;

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Reporte Técnico — Tarea 4</title>
+<style>
+@page{size:Letter;margin:18mm 17mm 17mm}*{box-sizing:border-box}body{font-family:"Segoe UI",Arial,sans-serif;color:#172033;font-size:10.5pt;line-height:1.5;margin:0}h1,h2,h3{color:#14213d;margin-top:0}h1{font-size:27pt;line-height:1.15}h2{font-size:17pt;border-bottom:2px solid #e1ad01;padding-bottom:5px;margin-top:24px}h3{font-size:12.5pt;margin:18px 0 6px}.cover{height:220mm;display:flex;flex-direction:column;justify-content:center;text-align:center;page-break-after:always}.brand{color:#e1ad01;font-weight:800;letter-spacing:4px;font-size:15pt}.subtitle{font-size:14pt;color:#526078;margin:16px 0 45px}.meta{border-top:1px solid #ccd3df;border-bottom:1px solid #ccd3df;padding:18px;margin:0 auto;width:75%}.meta p{margin:6px}.page-break{page-break-before:always}.keep{break-inside:avoid}.lead{font-size:11.5pt;color:#3e4b61}.callout{background:#f5f7fb;border-left:4px solid #e1ad01;padding:11px 14px;margin:13px 0}.success{background:#edf9f0;border-left-color:#238636}.code{font-family:Consolas,"Courier New",monospace;background:#10151d;color:#e6edf3;padding:12px 14px;border-radius:6px;font-size:8.8pt;white-space:pre-wrap;line-height:1.45}.inline{font-family:Consolas,monospace;background:#edf0f5;padding:1px 4px;border-radius:3px;font-size:9pt}table{border-collapse:collapse;width:100%;margin:10px 0 18px;font-size:8.8pt;break-inside:avoid}th{background:#14213d;color:white;text-align:left}th,td{border:1px solid #cdd4df;padding:7px;vertical-align:top}tr:nth-child(even) td{background:#f7f8fa}.flow{display:flex;align-items:stretch;justify-content:center;gap:4px;margin:18px 0;break-inside:avoid}.node{background:#14213d;color:white;padding:11px 7px;border-radius:6px;text-align:center;width:105px;display:flex;align-items:center;justify-content:center;font-size:8.5pt;font-weight:650}.node.gold{background:#a87900}.arrow{display:flex;align-items:center;color:#a87900;font-size:17pt}.evidence{width:100%;border:1px solid #3b4556;border-radius:7px;margin-top:10px}.caption{font-size:8.5pt;color:#59667a;text-align:center;margin-top:5px}.toc li{margin:5px 0}.footer-note{font-size:8.5pt;color:#667085}.repo{word-break:break-all;color:#1859a9}.badge{display:inline-block;background:#14213d;color:white;padding:3px 7px;border-radius:12px;font-size:8pt;margin-right:4px}.checklist li{margin:5px 0}
+</style>
+</head>
+<body>
+<section class="cover">
+  <div class="brand">CINESTREAM</div>
+  <h1>Arquitectura del Repositorio<br>Genérico de Datos y Matriz de Tipado</h1>
+  <div class="subtitle">Tarea 4 — Patrones de diseño y tipado seguro</div>
+  <div class="meta">
+    <p><strong>Estudiante:</strong> Hyground</p>
+    <p><strong>Asignatura:</strong> Desarrollo Web</p>
+    <p><strong>Proyecto:</strong> Plataforma de visualización multimedia CineStream</p>
+    <p><strong>Fecha:</strong> 7 de agosto de 2026</p>
+    <p><strong>Repositorio:</strong><br><a class="repo" href="https://github.com/Hyground/Laboratorio1">https://github.com/Hyground/Laboratorio1</a></p>
+  </div>
+</section>
+
+<h2>1. Resumen ejecutivo</h2>
+<p class="lead">Se refactorizó CineStream para sustituir la administración directa de arreglos por un repositorio genérico en memoria. La solución conserva el tipo concreto de cada entidad, separa los contratos externos de los modelos internos y sanea payloads incompletos antes de incorporarlos al catálogo.</p>
+<div class="callout success"><strong>Resultado:</strong> una misma implementación administra <span class="inline">Movie</span>, <span class="inline">Series</span> y <span class="inline">Documentary</span>, sin <span class="inline">any</span>, sin supresiones y con compilación TypeScript estricta libre de errores.</div>
+
+<h3>Objetivos alcanzados</h3>
+<ul class="checklist">
+  <li>Repositorio <span class="inline">DataCatalogManager&lt;T extends { id: string | number }&gt;</span>.</li>
+  <li>Retornos polimórficos que preservan <span class="inline">T</span>, <span class="inline">T[]</span> y <span class="inline">T | undefined</span>.</li>
+  <li>Uso funcional de <span class="inline">Partial</span>, <span class="inline">Pick</span> y <span class="inline">Omit</span>.</li>
+  <li>Frontera de red basada en <span class="inline">unknown</span> y validación propiedad por propiedad.</li>
+  <li>Saneamiento mediante valores predeterminados de negocio.</li>
+  <li>Integración real del repositorio en los filtros, búsquedas y renderizado.</li>
+</ul>
+
+<h2>2. Arquitectura implementada</h2>
+<p>La entidad base <span class="inline">CatalogEntity</span> concentra el contrato compartido. Las interfaces especializadas agregan información de dominio sin obligar al repositorio a conocerla.</p>
+<div class="code">export interface CatalogEntity {
+  id: string | number;
+  title: string;
+  synopsis: string;
+  posterUrl: string;
+  releaseYear: string;
+  rating: number;
+}
+
+export interface Movie extends CatalogEntity { /* campos de película */ }
+export interface Series extends CatalogEntity { /* temporadas y episodios */ }
+export interface Documentary extends CatalogEntity { /* tema y duración */ }</div>
+
+<h3>Responsabilidades por capa</h3>
+<table>
+  <thead><tr><th>Capa</th><th>Responsabilidad</th><th>Archivos principales</th></tr></thead>
+  <tbody>
+    <tr><td>DTO</td><td>Representar el contrato externo y admitir campos parciales tras la inspección.</td><td>dtos/movie-db.dto.ts</td></tr>
+    <tr><td>Mapper</td><td>Sanear y convertir el DTO en una entidad completa del dominio.</td><td>mappers/movie.mapper.ts</td></tr>
+    <tr><td>Entidad</td><td>Definir datos confiables consumidos internamente.</td><td>entities/*.entity.ts</td></tr>
+    <tr><td>Repositorio</td><td>Encapsular almacenamiento, consultas y mutaciones tipadas.</td><td>repository/data-catalog.manager.ts</td></tr>
+    <tr><td>Servicio</td><td>Orquestar APIs, normalizar payloads y enriquecer metadatos.</td><td>service/movie.service.ts</td></tr>
+    <tr><td>Interfaz</td><td>Filtrar y renderizar entidades ya saneadas.</td><td>app.ts</td></tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+<h2>3. Generic Repository</h2>
+<p>La restricción genérica garantiza en compilación que toda entidad posea una identidad compatible. Internamente se utiliza <span class="inline">Map&lt;T['id'], T&gt;</span> para obtener acceso directo por identificador y evitar duplicados.</p>
+<div class="code">export class DataCatalogManager&lt;T extends { id: string | number }&gt; {
+  private readonly items = new Map&lt;T['id'], T&gt;();
+
+  public getAll(): T[];
+  public findById(id: T['id']): T | undefined;
+  public findBy&lt;K extends keyof T&gt;(field: K, value: T[K]): T[];
+  public filter(predicate: (item: Readonly&lt;T&gt;) =&gt; boolean): T[];
+  public update(id: T['id'], changes: CatalogUpdate&lt;T&gt;): T | undefined;
+  public remove(id: T['id']): boolean;
+}</div>
+
+<h3>Preservación matemática del tipo</h3>
+<table>
+  <thead><tr><th>Instancia</th><th>Consulta</th><th>Retorno inferido</th></tr></thead>
+  <tbody>
+    <tr><td>DataCatalogManager&lt;Movie&gt;</td><td>filter(...)</td><td>Movie[]</td></tr>
+    <tr><td>DataCatalogManager&lt;Series&gt;</td><td>findById(...)</td><td>Series | undefined</td></tr>
+    <tr><td>DataCatalogManager&lt;Documentary&gt;</td><td>findBy('educational', true)</td><td>Documentary[]</td></tr>
+  </tbody>
+</table>
+<p>El par genérico <span class="inline">K extends keyof T</span> / <span class="inline">T[K]</span> impide buscar con una propiedad inexistente o comparar una propiedad con un valor incompatible. Por ejemplo, <span class="inline">findBy('rating', 'alta')</span> es rechazado porque <span class="inline">rating</span> requiere un número.</p>
+
+<h2>4. Matriz de Utility Types</h2>
+<table>
+  <thead><tr><th>Utilidad</th><th>Definición aplicada</th><th>Caso de uso</th><th>Riesgo evitado</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Pick</strong></td><td>Pick&lt;T, 'id'&gt;</td><td>CatalogIdentity&lt;T&gt; y selección de valores predeterminados del mapper.</td><td>Solicitar una identidad con campos ajenos o exponer datos innecesarios.</td></tr>
+    <tr><td><strong>Omit</strong></td><td>Omit&lt;T, 'id'&gt;</td><td>CatalogCreate&lt;T&gt; recibe los datos mientras el ID se proporciona por separado.</td><td>Duplicar o contradecir la identidad al crear una entidad.</td></tr>
+    <tr><td><strong>Partial + Omit</strong></td><td>Partial&lt;Omit&lt;T, 'id'&gt;&gt;</td><td>CatalogUpdate&lt;T&gt; permite parches de uno o varios campos.</td><td>Exigir objetos completos en una actualización o permitir modificar el ID.</td></tr>
+    <tr><td><strong>Partial</strong></td><td>Partial&lt;MovieDbMovieDto&gt;</td><td>IncompleteMovieDbDto representa datos de red inspeccionados pero incompletos.</td><td>Tratar como confiable un contrato externo corrupto.</td></tr>
+  </tbody>
+</table>
+
+<div class="callout"><strong>Decisión de seguridad:</strong> la mutación reconstruye la entidad con <span class="inline">id: current.id</span>. Incluso si un consumidor intenta introducir el identificador mediante una conversión externa, el repositorio preserva la identidad original durante la ejecución.</div>
+
+<div class="page-break"></div>
+<h2>5. Interface frente a type</h2>
+<table>
+  <thead><tr><th>Criterio</th><th>interface</th><th>type</th><th>Elección en CineStream</th></tr></thead>
+  <tbody>
+    <tr><td>Modelado de objetos</td><td>Expresa contratos nominalmente legibles y extensibles.</td><td>También modela objetos, pero destaca en composiciones.</td><td><strong>interface</strong> para DTOs y entidades.</td></tr>
+    <tr><td>Herencia</td><td>Utiliza <span class="inline">extends</span> de manera directa.</td><td>Utiliza intersecciones con <span class="inline">&amp;</span>.</td><td><strong>interface</strong> para Movie, Series y Documentary sobre CatalogEntity.</td></tr>
+    <tr><td>Utility Types</td><td>No representa directamente el resultado calculado de una utilidad.</td><td>Puede asignar tipos derivados y combinaciones.</td><td><strong>type</strong> para CatalogCreate, CatalogUpdate e IncompleteMovieDbDto.</td></tr>
+    <tr><td>Uniones</td><td>No modela uniones por sí sola.</td><td>Ideal para uniones literales.</td><td><strong>type</strong> para Language y Genre.</td></tr>
+    <tr><td>Fusión de declaraciones</td><td>Permite declaration merging.</td><td>No fusiona declaraciones.</td><td>Las entidades podrían ampliarse por integración; los tipos calculados deben permanecer cerrados.</td></tr>
+    <tr><td>Intención semántica</td><td>“Este objeto debe cumplir este contrato”.</td><td>“Este nombre representa este cálculo o conjunto de tipos”.</td><td>La selección comunica el papel arquitectónico de cada construcción.</td></tr>
+  </tbody>
+</table>
+<p>La decisión no se basa en preferencia estilística. Las entidades y respuestas son contratos estructurales abiertos a extensión; las operaciones de creación y actualización son transformaciones calculadas a partir de dichos contratos.</p>
+
+<h2>6. Flujo seguro de datos</h2>
+<div class="flow">
+  <div class="node">API externa</div><div class="arrow">→</div>
+  <div class="node">Payload<br>unknown</div><div class="arrow">→</div>
+  <div class="node gold">Validador</div><div class="arrow">→</div>
+  <div class="node">Partial&lt;DTO&gt;</div><div class="arrow">→</div>
+  <div class="node gold">Mapper + defaults</div><div class="arrow">→</div>
+  <div class="node">Movie limpia</div>
+</div>
+<div class="flow">
+  <div class="node">Movie limpia</div><div class="arrow">→</div>
+  <div class="node gold">DataCatalog<br>Manager</div><div class="arrow">→</div>
+  <div class="node">Filtros y búsquedas</div><div class="arrow">→</div>
+  <div class="node">Componentes UI</div>
+</div>
+
+<h3>Tratamiento del caos de red</h3>
+<ol>
+  <li><span class="inline">fetchJson&lt;unknown&gt;</span> evita afirmar prematuramente que la respuesta cumple el DTO.</li>
+  <li><span class="inline">isRecord</span> descarta primitivos y valores nulos.</li>
+  <li><span class="inline">toIncompleteMovieDto</span> copia exclusivamente propiedades cuyo tipo fue comprobado.</li>
+  <li>El mapper normaliza textos vacíos, identificadores ausentes, años inválidos y puntuaciones no numéricas.</li>
+  <li>La entidad completa resultante es la única forma admitida por el repositorio y la interfaz.</li>
+</ol>
+
+<div class="page-break"></div>
+<h2>7. Valores predeterminados de negocio</h2>
+<table>
+  <thead><tr><th>Campo problemático</th><th>Validación</th><th>Valor seguro</th></tr></thead>
+  <tbody>
+    <tr><td>id ausente o no finito</td><td>typeof id === 'number' &amp;&amp; Number.isFinite(id)</td><td>Índice estable dentro del género.</td></tr>
+    <tr><td>title ausente o vacío</td><td>trim() con fallback</td><td>“Sin título”.</td></tr>
+    <tr><td>synopsis ausente</td><td>Enriquecimiento externo o fallback</td><td>“Sinopsis no disponible”.</td></tr>
+    <tr><td>posterURL corrupta</td><td>Solo se acepta string no vacío</td><td>Portada visual generada por CSS.</td></tr>
+    <tr><td>year ausente o no finito</td><td>Comprobación numérica</td><td>“Año no disponible”.</td></tr>
+    <tr><td>rating inválido</td><td>Number.isFinite y valor no negativo</td><td>0 internamente; “Sin puntuación” en UI.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Configuración estricta</h2>
+<p>La configuración activa controles superiores al requisito base:</p>
+<div class="code">"strict": true,
+"noImplicitAny": true,
+"strictNullChecks": true,
+"noUncheckedIndexedAccess": true,
+"exactOptionalPropertyTypes": true,
+"noFallthroughCasesInSwitch": true,
+"noEmit": true,
+"noEmitOnError": true</div>
+<p><span class="inline">noUncheckedIndexedAccess</span> obligó a verificar resultados obtenidos por índice, mientras que <span class="inline">exactOptionalPropertyTypes</span> evitó asignar explícitamente <span class="inline">undefined</span> a propiedades opcionales. Estas reglas detectaron riesgos reales durante la refactorización.</p>
+
+<h2>9. Evidencia de compilación</h2>
+<p>Se ejecutó <span class="inline">npx tsc --noEmit</span> sobre la base completa, incluyendo la demostración polimórfica ubicada en <span class="inline">tests/</span>.</p>
+<img class="evidence" src="evidencias/tsc-strict.png" alt="Evidencia de terminal: TypeScript strict sin errores">
+<div class="caption">Figura 1. Ejecución verificada: TypeScript 5.9.3, código de salida 0, cero errores.</div>
+
+<div class="page-break"></div>
+<h2>10. Verificación de la rúbrica</h2>
+<table>
+  <thead><tr><th>Criterio</th><th>Evidencia implementada</th><th>Estado</th></tr></thead>
+  <tbody>
+    <tr><td>Abstracción genérica y DTOs</td><td>Repositorio restringido por identidad, tres entidades polimórficas, DTO aislado y mapper seguro.</td><td>Completo</td></tr>
+    <tr><td>Utility Types</td><td>Partial, Pick y Omit aplicados a actualización, identidad, creación y payload incompleto.</td><td>Completo</td></tr>
+    <tr><td>Reporte PDF</td><td>Análisis interface/type, flujo conceptual, matriz y evidencia estricta.</td><td>Completo</td></tr>
+    <tr><td>Prohibición de any</td><td>Búsqueda global sin coincidencias; frontera externa tratada como unknown.</td><td>Completo</td></tr>
+    <tr><td>Compilación</td><td>npx tsc --noEmit, exit code 0.</td><td>Completo</td></tr>
+  </tbody>
+</table>
+
+<h2>11. Conclusiones</h2>
+<p>El patrón Generic Repository reduce duplicación sin sacrificar información de tipos: cada instancia conserva las propiedades particulares de su entidad. La frontera basada en <span class="inline">unknown</span>, el DTO parcial saneado y el mapper completo impiden que datos defectuosos se propaguen hacia la interfaz.</p>
+<p>Las Utility Types funcionan como reglas de negocio compilables. <span class="inline">CatalogUpdate&lt;T&gt;</span> expresa que una modificación es parcial y no puede alterar la identidad; <span class="inline">CatalogCreate&lt;T&gt;</span> separa la creación de la asignación del ID; y <span class="inline">CatalogIdentity&lt;T&gt;</span> limita las consultas de identidad al dato indispensable.</p>
+<div class="callout success"><strong>Conclusión final:</strong> CineStream queda preparado para incorporar nuevas familias de contenido sin duplicar infraestructura y con una defensa estática y dinámica frente a cambios en contratos externos.</div>
+
+<h3>Repositorio de entrega</h3>
+<p><a class="repo" href="https://github.com/Hyground/Laboratorio1">https://github.com/Hyground/Laboratorio1</a></p>
+<p class="footer-note">Documento generado como parte de la Tarea 4 de Desarrollo Web. El código fuente, la evidencia y la versión HTML de este reporte se incluyen en el mismo repositorio.</p>
+</body>
+</html>

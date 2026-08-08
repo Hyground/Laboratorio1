@@ -1,5 +1,6 @@
 import { cargarDatosOrquestados } from './service/movie.service.js';
 import type { Movie } from './entities/movie.entity.js';
+import { DataCatalogManager } from './repository/data-catalog.manager.js';
 
 type Language = 'es' | 'en' | 'fr' | 'de' | 'pt';
 type Genre = 'todos' | 'favoritos' | `${number}`;
@@ -12,7 +13,7 @@ const translations: Record<Language, Record<string, string>> = {
     pt: { categories: 'Categorias:', all: 'Todos', action: 'Ação e aventura', comedy: 'Comédia', drama: 'Drama', scifi: 'Ficção científica', horror: 'Terror', favorites: '❤️ Favoritos', popular: 'Filmes populares', search_placeholder: 'Pesquisar filme...', translating: 'Traduzindo sinopse...', no_synopsis: 'Sinopse indisponível.' }
 };
 
-let movies: Movie[] = [];
+const movieCatalog = new DataCatalogManager<Movie>();
 let favoriteIds = new Set<number>();
 let selectedGenre: Genre = 'todos';
 let currentLanguage: Language = 'es';
@@ -31,7 +32,8 @@ async function initialize(): Promise<void> {
     status.textContent = 'Cargando catálogo...';
     try {
         const result = await cargarDatosOrquestados();
-        movies = result.movies;
+        movieCatalog.replaceAll(result.movies);
+        const movies = movieCatalog.getAll();
         status.textContent = result.failedGenres.length
             ? `Catálogo cargado (${movies.length}). Sin datos disponibles: ${result.failedGenres.join(', ')}.`
             : `Catálogo cargado correctamente: ${movies.length} películas.`;
@@ -45,6 +47,7 @@ async function initialize(): Promise<void> {
 }
 
 function renderCurrentView(): void {
+    const movies = movieCatalog.getAll();
     const query = search.value.toLocaleLowerCase().trim();
     const list = movies.filter((movie) => {
         const matchesGenre = selectedGenre === 'todos'
@@ -59,7 +62,7 @@ function render(list: Movie[]): void {
     if (!list.length) {
         const message = document.createElement('p');
         message.className = 'empty-message';
-        message.textContent = movies.length ? 'No hay películas que coincidan con este filtro.' : 'No hay películas disponibles.';
+        message.textContent = movieCatalog.size ? 'No hay películas que coincidan con este filtro.' : 'No hay películas disponibles.';
         container.append(message);
         return;
     }
@@ -159,7 +162,7 @@ async function updateSynopsis(movie: Movie): Promise<void> {
     const synopsis = required<HTMLElement>('modal-sinopsis');
     const language = currentLanguage;
     if (movie.synopsis === 'Sinopsis no disponible.') {
-        synopsis.textContent = translations[language].no_synopsis;
+        synopsis.textContent = translations[language].no_synopsis ?? 'Sinopsis no disponible.';
         return;
     }
     if (language === 'en') {
@@ -167,7 +170,7 @@ async function updateSynopsis(movie: Movie): Promise<void> {
         return;
     }
 
-    synopsis.textContent = translations[language].translating;
+    synopsis.textContent = translations[language].translating ?? 'Traduciendo sinopsis...';
     const cacheKey = `${movie.id}:${language}`;
     let translation = synopsisTranslations.get(cacheKey);
     if (!translation) {
