@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc"
+    "dev": "vite",
+    "build": "tsc --noEmit",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.1"
   }
 }

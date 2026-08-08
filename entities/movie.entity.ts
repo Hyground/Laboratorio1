@@ -1,6 +1,7 @@
 /** Entidad interna, ya validada y lista para la interfaz. */
 export interface Movie {
     id: number;
+    imdbId?: string;
     title: string;
     synopsis: string;
     posterUrl: string;
@@ -9,4 +10,9 @@ export interface Movie {
     genreIds: number[];
     isFavorite: boolean;
     reviewCount: number;
+}
+
+export interface MovieCatalogResult {
+    movies: Movie[];
+    failedGenres: string[];
 }

@@ -40,7 +40,6 @@
             <div class="filter-pills" id="filtro-generos">
                 <button class="pill-btn active" data-genre="todos" data-i18n="all">Todos</button>
                 <button class="pill-btn" data-genre="28" data-i18n="action">Acción</button>
-                <button class="pill-btn" data-genre="12" data-i18n="adventure">Aventura</button>
                 <button class="pill-btn" data-genre="35" data-i18n="comedy">Comedia</button>
                 <button class="pill-btn" data-genre="18" data-i18n="drama">Drama</button>
                 <button class="pill-btn" data-genre="878" data-i18n="scifi">Ciencia Ficción</button>
@@ -73,7 +72,7 @@
 
             <div class="modal-body">
                 <div class="modal-poster">
-                    <img id="modal-img" src="" alt="Póster">
+                    <div id="modal-poster-title" class="modal-generated-poster" aria-hidden="true"></div>
                 </div>
                 <div class="modal-info">
                     <h2 id="modal-titulo">Título</h2>
@@ -85,9 +84,6 @@
 
                     <p id="modal-sinopsis">Sinopsis...</p>
 
-                    <div class="modal-actions">
-                        <button class="btn-gold" data-i18n="play">▶ Reproducir</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -97,7 +93,7 @@
         <p>&copy; 2026 CineStream.</p>
     </footer>
 
-    <script type="module" src="app.js"></script>
+    <script type="module" src="/app.ts"></script>
 </body>
 
 </html>

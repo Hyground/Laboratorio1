@@ -6,6 +6,7 @@
     "lib": ["ES2020", "DOM"],
     "strict": true,
     "noImplicitAny": true,
+    "noEmit": true,
     "noEmitOnError": true,
     "skipLibCheck": true
   },

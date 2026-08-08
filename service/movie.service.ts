@@ -1,13 +1,16 @@
 import type { MovieDbMovieDto } from '../dtos/movie-db.dto.js';
-import type { Movie } from '../entities/movie.entity.js';
+import type { Movie, MovieCatalogResult } from '../entities/movie.entity.js';
 import { mapMovieDtoToEntity } from '../mappers/movie.mapper.js';
 
 // API pública gratuita: no requiere registro ni API key.
 const API_BASE_URL = 'https://api.sampleapis.com/movies';
-const ENDPOINTS: ReadonlyArray<readonly [string, number]> = [
-    ['action-adventure', 12],
-    ['comedy', 35],
-    ['drama', 18]
+const CINEMETA_BASE_URL = 'https://v3-cinemeta.strem.io/meta/movie';
+const ENDPOINTS: ReadonlyArray<readonly [string, number, string]> = [
+    ['action-adventure', 28, 'Acción y aventura'],
+    ['comedy', 35, 'Comedia'],
+    ['drama', 18, 'Drama'],
+    ['horror', 27, 'Terror'],
+    ['scifi-fantasy', 878, 'Ciencia ficción']
 ];
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -17,12 +20,65 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 /** Conecta tres endpoints reales y los consulta en paralelo. */
-export async function cargarDatosOrquestados(): Promise<Movie[]> {
+export async function cargarDatosOrquestados(): Promise<MovieCatalogResult> {
     const results = await Promise.allSettled(ENDPOINTS.map(([genre]) => fetchJson<unknown>(`${API_BASE_URL}/${genre}`)));
     const mappedMovies = results.flatMap((result, index) => result.status === 'fulfilled'
         ? normalizeMovies(result.value).map((movie) => mapMovieDtoToEntity(movie, ENDPOINTS[index][1]))
         : []);
-    return mappedMovies.length ? mappedMovies : [mapMovieDtoToEntity({ id: 0, title: 'CineStream', posterURL: 'https://placehold.co/500x750?text=CineStream', rating: 0 }, 0)];
+    const failedGenres = results.flatMap((result, index) => {
+        const hasMovies = result.status === 'fulfilled' && normalizeMovies(result.value).length > 0;
+        return hasMovies ? [] : [ENDPOINTS[index][2]];
+    });
+    const movies = deduplicate(mappedMovies);
+    await enrichMovies(movies);
+    return { movies, failedGenres };
+}
+
+interface CinemetaResponse {
+    meta?: {
+        description?: string;
+        imdbRating?: string | number;
+        poster?: string;
+        releaseInfo?: string;
+    };
+}
+
+/** Completa metadatos faltantes mediante Cinemeta, una API gratuita sin clave. */
+async function enrichMovies(movies: Movie[]): Promise<void> {
+    const pending = movies.filter((movie) => movie.imdbId);
+    const concurrency = 8;
+    let nextIndex = 0;
+
+    async function worker(): Promise<void> {
+        while (nextIndex < pending.length) {
+            const movie = pending[nextIndex++];
+            try {
+                const payload = await fetchJson<CinemetaResponse>(`${CINEMETA_BASE_URL}/${encodeURIComponent(movie.imdbId!)}.json`);
+                const meta = payload.meta;
+                if (!meta) continue;
+                if (meta.description?.trim()) movie.synopsis = meta.description.trim();
+                if (meta.poster?.trim()) movie.posterUrl = meta.poster.trim();
+                if (movie.releaseYear === 'Año no disponible' && meta.releaseInfo?.trim()) movie.releaseYear = meta.releaseInfo.trim();
+                const externalRating = Number(meta.imdbRating);
+                if ((!movie.rating || !Number.isFinite(movie.rating)) && Number.isFinite(externalRating)) movie.rating = externalRating;
+            } catch {
+                // La información original permanece disponible si Cinemeta no responde.
+            }
+        }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, () => worker()));
+}
+
+function deduplicate(movies: Movie[]): Movie[] {
+    const unique = new Map<string, Movie>();
+    for (const movie of movies) {
+        const key = `${movie.title.toLocaleLowerCase()}-${movie.releaseYear}`;
+        const existing = unique.get(key);
+        if (existing) existing.genreIds = [...new Set([...existing.genreIds, ...movie.genreIds])];
+        else unique.set(key, movie);
+    }
+    return [...unique.values()];
 }
 
 /** Algunos endpoints entregan un arreglo y otros lo envuelven en data/results/items. */
